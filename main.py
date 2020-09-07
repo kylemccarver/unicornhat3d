@@ -16,6 +16,11 @@ class Fragment(object):
         self.depth = sys.maxsize
 
 
+eps = 0.00001
+
+unicornhathd.brightness(0.2)
+unicornhathd.rotation(90)
+
 w, h = unicornhathd.get_shape()
 
 viewport = {
@@ -48,19 +53,16 @@ def main():
         glm.vec4(1, -1, 1, 1)
     ]
 
-    pipeline(verts)
 
     try:
+        t = time.time()
         while True:
-            for v in verts:
-                mvp = P * V * M * v
+            unicornhathd.clear()
+            #dt = time.time() - t
+            #t = time.time()
 
-                screen = clip_to_screen_space(mvp)
-               
-                unicornhathd.set_pixel(screen.x, screen.y, 255, 0, 0)
-
-            unicornhathd.brightness(0.2)
-            unicornhathd.rotation(90)
+            #V = glm.rotate(V, 0.05, glm.vec3(0, 0, 1))
+            pipeline(verts)
             unicornhathd.show()
 
     except KeyboardInterrupt:
@@ -79,10 +81,7 @@ def vertex_shader(vertices):
 
 
 def vertex_post_processing(vertices):
-    out = []
-    for v in vertices:
-        out.append(P * V * M * v)
-    return out
+    return [P * V * M * v for v in vertices]
 
 
 def primitive_assembly(vertices):
@@ -90,16 +89,24 @@ def primitive_assembly(vertices):
 
 
 def rasterize(primitives):
+    out = []
     for primitive in primitives:
         screen_vertices = [clip_to_screen_space(v) for v in primitive.vertices]
-        min_x = min(screen_vertices, key=lambda v: v.x).x
-        min_y = min(screen_vertices, key=lambda v: v.y).y
-        max_x = max(screen_vertices, key=lambda v: v.x).x
-        max_y = max(screen_vertices, key=lambda v: v.y).y
+        min_x = round(min(screen_vertices, key=lambda v: v.x).x)
+        min_y = round(min(screen_vertices, key=lambda v: v.y).y)
+        max_x = round(max(screen_vertices, key=lambda v: v.x).x)
+        max_y = round(max(screen_vertices, key=lambda v: v.y).y)
 
-        for x in min_x:
-            for y in min_y:
-                pass
+        for x in range(min_x, max_x):
+            for y in range(min_y, max_y):
+                centroid = glm.vec3(x + 0.5, y + 0.5, 0)
+                v1 = glm.vec3(screen_vertices[0].xy, 0)
+                v2 = glm.vec3(screen_vertices[1].xy, 0)
+                v3 = glm.vec3(screen_vertices[2].xy, 0)
+                a, b, g = barycentric(v1, v2, v3, centroid)
+                interp = a + b + g
+                if interp >= 1 - eps and interp <= 1 + eps:
+                    unicornhathd.set_pixel(x, y, 255 * a, 255 * b, 255 * g)
 
 
 def fragment_shader():
