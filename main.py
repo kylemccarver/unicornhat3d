@@ -15,15 +15,39 @@ class Viewport(object):
         self.f = f
 
 
+class VertexArrayObject(object):
+    def __init__(self):
+        self.attributes = {}
+
+
+    def enable_vertex_attrib_array(self, index):
+        self.attributes[index] = []
+
+
+    def bind_vertex_attrib_data(self, index, data, size):
+        self.attributes[index] = VertexAttribPointer(data, size)
+
+
+class VertexAttribPointer(object):
+    def __init__(self, data, size):
+        self.data = data
+        self.size = size
+
+
+class Vertex(object):
+    def __init__(self, attributes):
+        self.attributes = attributes
+        self.position = None
+
+
 class Primitive(object):
     def __init__(self, vertices):
         self.vertices = vertices
 
 
 class Fragment(object):
-    def __init__(self):
-        self.screen = glm.vec3(0)
-        self.depth = sys.maxsize
+    def __init__(self, screen):
+        self.screen = screen
 
 
 unicornhathd.brightness(0.2)
@@ -42,6 +66,24 @@ def main():
         glm.vec4(1, -1, 1, 1)
     ]
 
+    colors = [
+        glm.vec4(1, 0, 0, 1),
+        glm.vec4(0, 1, 0, 1),
+        glm.vec4(0, 0, 1, 1),
+
+        glm.vec4(1, 0, 0, 1),
+        glm.vec4(0, 1, 0, 1),
+        glm.vec4(0, 0, 1, 1)
+    ]
+
+    vao = VertexArrayObject()
+
+    vao.enable_vertex_attrib_array(0)
+    vao.bind_vertex_attrib_data(0, verts, 3)
+
+    vao.enable_vertex_attrib_array(1)
+    vao.bind_vertex_attrib_data(1, colors, 3)
+
     w, h = unicornhathd.get_shape()
 
     view = Viewport(0, 0, w, h, 0.1, 100)
@@ -55,33 +97,48 @@ def main():
     P = glm.perspective(glm.radians(45), view.w / view.h, view.n, view.f)
 
     try:
-        t = time.time()
+        #t = time.time()
         #while True:
             #unicornhathd.clear()
             #dt = time.time() - t
             #t = time.time()
 
             #V = glm.rotate(V, 0.05, glm.vec3(0, 0, 1))
-        pipeline(verts)
+        pipeline(vao)
             #unicornhathd.show()
 
     except KeyboardInterrupt:
         unicornhathd.off()
 
 
-def pipeline(vertices):
-    vertex_shader_out = vertex_shader(vertices)
-    vertex_post_processing_out = vertex_post_processing(vertex_shader_out)
-    primitives = primitive_assembly(vertex_post_processing_out)
+def pipeline(vao):
+    vertices = vertex_specification(vao.attributes)
+
+    for vertex in vertices:
+        vertex.position, vertex.attributes = vertex_shader(vertex.attributes, {})
+        vertex_post_processing(vertex)
+
+    primitives = primitive_assembly(vertices)
     fragments = rasterize(primitives)
 
 
-def vertex_shader(vertices):
-    return vertices
+def vertex_specification(attributes):
+    return [Vertex({k: attributes[k].data[i] for k in attributes.keys()}) for i in range(0, len(attributes[0].data))]
 
 
-def vertex_post_processing(vertices):
-    return [P * V * M * v for v in vertices]
+def vertex_shader(v_attr, out):
+    # in
+    v_position = v_attr[0]
+    color = v_attr[1]
+    # out
+    position = v_position
+    out["color"] = color
+
+    return position, out
+
+
+def vertex_post_processing(vertex):
+    vertex.position = P * V * M * vertex.position
 
 
 def primitive_assembly(vertices):
@@ -91,7 +148,7 @@ def primitive_assembly(vertices):
 def rasterize(primitives):
     out = []
     for primitive in primitives:
-        screen_vertices = [clip_to_screen_space(v) for v in primitive.vertices]
+        screen_vertices = [clip_to_screen_space(v.position) for v in primitive.vertices]
         min_x = round(min(screen_vertices, key=lambda v: v.x).x)
         min_y = round(min(screen_vertices, key=lambda v: v.y).y)
         max_x = round(max(screen_vertices, key=lambda v: v.x).x)
