@@ -46,15 +46,17 @@ class Primitive(object):
 
 
 class Fragment(object):
-    def __init__(self, screen):
+    def __init__(self, screen, attributes):
         self.screen = screen
+        self.attributes = attributes
+        self.color = None
 
 
 unicornhathd.brightness(0.2)
 unicornhathd.rotation(90)
 
 def main():
-    global M, V, P, view
+    global M, V, P, view, depth_buffer, frame_buffer
 
     verts = [
         glm.vec4(-1, 1, 1, 1),
@@ -85,6 +87,9 @@ def main():
     vao.bind_vertex_attrib_data(1, colors, 3)
 
     w, h = unicornhathd.get_shape()
+
+    depth_buffer = [[sys.maxsize] * w] * h
+    frame_buffer = [[glm.vec3(0, 0, 0] * w] * h
 
     view = Viewport(0, 0, w, h, 0.1, 100)
 
@@ -120,6 +125,9 @@ def pipeline(vao):
 
     primitives = primitive_assembly(vertices)
     fragments = rasterize(primitives)
+
+    for fragment in fragments:
+        fragment.color = fragment_shader(fragment.attributes)
 
 
 def vertex_specification(attributes):
@@ -172,13 +180,20 @@ def rasterize(primitives):
                 bias2 = 0 if top_left_test(v0, v1) else -1
 
                 if w0 + bias0 >= 0 and w1 + bias1 >= 0 and w2 + bias2 >= 0:
-                    # TODO: perspective-correct interpolation
-                    a, b, g = w0 / area, w1 / area, w2 / area
-                    #unicornhathd.set_pixel(x, y, 255 * a, 255 * b, 255 * g)
+                    a = w0 / area / primitive.vertices[0].position.w
+                    b = w1 / area / primitive.vertices[1].position.w
+                    g = w2 / area / primitive.vertices[2].position.w
+                    z, attr_interp = interpolate_primitive(a, b, g, primitive)
+                    out.append(Fragment(glm.vec3(x, y, z), attr_interp))
+
+    return out
 
 
-def fragment_shader():
-    pass
+def fragment_shader(f_attr):
+    # in
+    color = f_attr["color"]
+    # out
+    return color
 
 
 def clip_to_screen_space(vertex):
@@ -197,6 +212,26 @@ def edge_function(a, b, p):
 def top_left_test(p, q):
     e = q - p
     return True if e.x < 0 and e.y == 0 or e.y < 0 else False
+
+
+def interpolate_primitive(a, b, g, primitive):
+    attr = {}
+    depth = interpolate(a, b, g, 
+                        primitive.vertices[0].position.z, 
+                        primitive.vertices[1].position.z, 
+                        primitive.vertices[2].position.z)
+
+    for key in primitive.vertices[0].attributes.keys():
+        attr[key] = interpolate(a, b, g, 
+                                primitive.vertices[0].attributes[key], 
+                                primitive.vertices[1].attributes[key], 
+                                primitive.vertices[2].attributes[key])
+    return depth, attr
+
+
+def interpolate(a, b, g, f1, f2, f3):
+    denom = a + b + g
+    return (a * f1 + b * f2 + g * f3) / denom
 
 
 if __name__ == "__main__":
