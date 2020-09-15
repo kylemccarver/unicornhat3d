@@ -1,5 +1,4 @@
-import sys
-import time
+import math
 
 import glm
 import unicornhathd
@@ -55,28 +54,127 @@ class Fragment(object):
 unicornhathd.brightness(0.2)
 unicornhathd.rotation(90)
 
+
 def main():
     global M, V, P, view, depth_buffer, frame_buffer
 
     verts = [
+        # face 1 (front)
         glm.vec4(-1, 1, 1, 1),
         glm.vec4(-1, -1, 1, 1),
         glm.vec4(1, -1, 1, 1),
 
         glm.vec4(1, 1, 1, 1),
         glm.vec4(-1, 1, 1, 1),
-        glm.vec4(1, -1, 1, 1)
+        glm.vec4(1, -1, 1, 1),
+       
+        # face 2 (right)
+        glm.vec4(1, 1, 1, 1),
+        glm.vec4(1, -1, 1, 1),
+        glm.vec4(1, -1, -1, 1),
+
+        glm.vec4(1, 1, -1, 1),
+        glm.vec4(1, 1, 1, 1),
+        glm.vec4(1, -1, -1, 1),
+
+        # face 3 (back)
+        glm.vec4(1, 1, -1, 1),
+        glm.vec4(1, -1, -1, 1),
+        glm.vec4(-1, -1, -1, 1),
+        
+        glm.vec4(-1, 1, -1, 1),
+        glm.vec4(1, 1, -1, 1),
+        glm.vec4(-1, -1, -1, 1),
+
+        # face 4 (left)
+        glm.vec4(-1, 1, -1, 1),
+        glm.vec4(-1, -1, -1, 1),
+        glm.vec4(-1, -1, 1, 1),
+
+        glm.vec4(-1, 1, 1, 1),
+        glm.vec4(-1, 1, -1, 1),
+        glm.vec4(-1, -1, 1, 1),
+
+        # face 5 (top)
+        glm.vec4(-1, 1, -1, 1),
+        glm.vec4(-1, 1, 1, 1),
+        glm.vec4(1, 1, 1, 1),
+
+        glm.vec4(1, 1, -1, 1),
+        glm.vec4(-1, 1, -1, 1),
+        glm.vec4(1, 1, 1, 1),
+
+        # face 6 (bottom)
+        glm.vec4(-1, -1, 1, 1),
+        glm.vec4(-1, -1, -1, 1),
+        glm.vec4(1, -1, -1, 1),
+
+        glm.vec4(1, -1, 1, 1),
+        glm.vec4(-1, -1, 1, 1),
+        glm.vec4(1, -1, -1, 1)
     ]
 
     colors = [
+        # face 1 (front)
         glm.vec4(1, 0, 0, 1),
-        glm.vec4(0, 1, 0, 1),
-        glm.vec4(0, 0, 1, 1),
+        glm.vec4(1, 0, 0, 1),
+        glm.vec4(1, 0, 0, 1),
 
         glm.vec4(1, 0, 0, 1),
+        glm.vec4(1, 0, 0, 1),
+        glm.vec4(1, 0, 0, 1),
+
+        # face 2 (right)
         glm.vec4(0, 1, 0, 1),
-        glm.vec4(0, 0, 1, 1)
+        glm.vec4(0, 1, 0, 1),
+        glm.vec4(0, 1, 0, 1),
+
+        glm.vec4(0, 1, 0, 1),
+        glm.vec4(0, 1, 0, 1),
+        glm.vec4(0, 1, 0, 1),
+
+        # face 3 (back)
+        glm.vec4(0, 0, 1, 1),
+        glm.vec4(0, 0, 1, 1),
+        glm.vec4(0, 0, 1, 1),
+
+        glm.vec4(0, 0, 1, 1),
+        glm.vec4(0, 0, 1, 1),
+        glm.vec4(0, 0, 1, 1),
+
+        # face 4 (left)
+        glm.vec4(1, 1, 0, 1),
+        glm.vec4(1, 1, 0, 1),
+        glm.vec4(1, 1, 0, 1),
+
+        glm.vec4(1, 1, 0, 1),
+        glm.vec4(1, 1, 0, 1),
+        glm.vec4(1, 1, 0, 1),
+
+        # face 5 (top)
+        glm.vec4(0, 1, 1, 1),
+        glm.vec4(0, 1, 1, 1),
+        glm.vec4(0, 1, 1, 1),
+
+        glm.vec4(0, 1, 1, 1),
+        glm.vec4(0, 1, 1, 1),
+        glm.vec4(0, 1, 1, 1),
+
+        # face 6 (bottom)
+        glm.vec4(1, 0, 1, 1),
+        glm.vec4(1, 0, 1, 1),
+        glm.vec4(1, 0, 1, 1),
+
+        glm.vec4(1, 0, 1, 1),
+        glm.vec4(1, 0, 1, 1),
+        glm.vec4(1, 0, 1, 1)
     ]
+
+    w, h = unicornhathd.get_shape()
+    view = Viewport(0, 0, w, h, 0.1, 100)
+
+    depth_buffer = [view.f] * view.w * view.h
+    frame_buffer = [glm.vec4(0, 0, 0, 1)] * view.w * view.h
 
     vao = VertexArrayObject()
 
@@ -85,13 +183,6 @@ def main():
 
     vao.enable_vertex_attrib_array(1)
     vao.bind_vertex_attrib_data(1, colors, 3)
-
-    w, h = unicornhathd.get_shape()
-
-    depth_buffer = [[sys.maxsize] * w] * h
-    frame_buffer = [[glm.vec3(0, 0, 0] * w] * h
-
-    view = Viewport(0, 0, w, h, 0.1, 100)
 
     M = glm.mat4(1)
 
@@ -102,15 +193,13 @@ def main():
     P = glm.perspective(glm.radians(45), view.w / view.h, view.n, view.f)
 
     try:
-        #t = time.time()
-        #while True:
-            #unicornhathd.clear()
-            #dt = time.time() - t
-            #t = time.time()
+        while True:
+            clear_screen()
 
-            #V = glm.rotate(V, 0.05, glm.vec3(0, 0, 1))
-        pipeline(vao)
-            #unicornhathd.show()
+            V = glm.rotate(V, 0.05, glm.vec3(1, 1, 1))
+
+            pipeline(vao)
+            draw()
 
     except KeyboardInterrupt:
         unicornhathd.off()
@@ -128,6 +217,7 @@ def pipeline(vao):
 
     for fragment in fragments:
         fragment.color = fragment_shader(fragment.attributes)
+        per_sample(fragment)
 
 
 def vertex_specification(attributes):
@@ -157,10 +247,10 @@ def rasterize(primitives):
     out = []
     for primitive in primitives:
         screen_vertices = [clip_to_screen_space(v.position) for v in primitive.vertices]
-        min_x = round(min(screen_vertices, key=lambda v: v.x).x)
-        min_y = round(min(screen_vertices, key=lambda v: v.y).y)
-        max_x = round(max(screen_vertices, key=lambda v: v.x).x)
-        max_y = round(max(screen_vertices, key=lambda v: v.y).y)
+        min_x = math.floor(min(screen_vertices, key=lambda v: v.x).x)
+        min_y = math.floor(min(screen_vertices, key=lambda v: v.y).y)
+        max_x = math.ceil(max(screen_vertices, key=lambda v: v.x).x)
+        max_y = math.ceil(max(screen_vertices, key=lambda v: v.y).y)
 
         v0 = screen_vertices[0]
         v1 = screen_vertices[1]
@@ -194,6 +284,13 @@ def fragment_shader(f_attr):
     color = f_attr["color"]
     # out
     return color
+
+
+def per_sample(fragment):
+    x, y, z = int(fragment.screen.x), int(fragment.screen.y), fragment.screen.z
+    if z < depth_buffer[x * view.w + y]:
+        depth_buffer[x * view.w + y] = z
+        frame_buffer[x * view.w + y] = fragment.color
 
 
 def clip_to_screen_space(vertex):
@@ -232,6 +329,21 @@ def interpolate_primitive(a, b, g, primitive):
 def interpolate(a, b, g, f1, f2, f3):
     denom = a + b + g
     return (a * f1 + b * f2 + g * f3) / denom
+
+
+def clear_screen():
+    global depth_buffer, frame_buffer
+    depth_buffer = [view.f] * view.w * view.h
+    frame_buffer = [glm.vec4(0, 0, 0, 1)] * view.w * view.h
+    unicornhathd.clear()
+
+
+def draw():
+    for x in range(0, view.w):
+        for y in range(0, view.h):
+            color = frame_buffer[x * view.w + y]
+            unicornhathd.set_pixel(x, y, color.x * 255, color.y * 255, color.z * 255)
+    unicornhathd.show()
 
 
 if __name__ == "__main__":
