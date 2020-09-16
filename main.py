@@ -54,7 +54,6 @@ class Fragment(object):
 unicornhathd.brightness(0.2)
 unicornhathd.rotation(90)
 
-
 def main():
     global M, V, P, view, depth_buffer, frame_buffer
 
@@ -67,7 +66,7 @@ def main():
         glm.vec4(1, 1, 1, 1),
         glm.vec4(-1, 1, 1, 1),
         glm.vec4(1, -1, 1, 1),
-       
+      
         # face 2 (right)
         glm.vec4(1, 1, 1, 1),
         glm.vec4(1, -1, 1, 1),
@@ -265,14 +264,16 @@ def rasterize(primitives):
                 w1 = edge_function(v2, v0, centroid)
                 w2 = edge_function(v0, v1, centroid)
 
-                bias0 = 0 if top_left_test(v1, v2) else -1
-                bias1 = 0 if top_left_test(v2, v0) else -1
-                bias2 = 0 if top_left_test(v0, v1) else -1
+                inside = True
+                inside &= top_left_test(v1, v2) if w0 == 0 else w0 > 0
+                inside &= top_left_test(v2, v0) if w1 == 0 else w1 > 0
+                inside &= top_left_test(v0, v1) if w2 == 0 else w2 > 0
 
-                if w0 + bias0 >= 0 and w1 + bias1 >= 0 and w2 + bias2 >= 0:
+                if inside:
                     a = w0 / area / primitive.vertices[0].position.w
                     b = w1 / area / primitive.vertices[1].position.w
                     g = w2 / area / primitive.vertices[2].position.w
+
                     z, attr_interp = interpolate_primitive(a, b, g, primitive)
                     out.append(Fragment(glm.vec3(x, y, z), attr_interp))
 
@@ -327,8 +328,7 @@ def interpolate_primitive(a, b, g, primitive):
 
 
 def interpolate(a, b, g, f1, f2, f3):
-    denom = a + b + g
-    return (a * f1 + b * f2 + g * f3) / denom
+    return (a * f1 + b * f2 + g * f3) / (a + b + g)
 
 
 def clear_screen():
