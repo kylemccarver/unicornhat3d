@@ -1,4 +1,5 @@
 import math
+import time
 
 import glm
 import unicornhathd
@@ -185,7 +186,7 @@ def main():
 
     M = glm.mat4(1)
 
-    V = glm.lookAt(glm.vec3(0, 0, 6), 
+    V = glm.lookAt(glm.vec3(0, 0, 5), 
                    glm.vec3(0, 0, 0), 
                    glm.vec3(0, 1, 0))
 
@@ -193,9 +194,10 @@ def main():
 
     try:
         while True:
+            t = time.process_time()
             clear_screen()
 
-            V = glm.rotate(V, 0.05, glm.vec3(1, 1, 1))
+            V = glm.rotate(V, 0.05, glm.vec3(math.sin(t), math.cos(t), math.sin(t)))
 
             pipeline(vao)
             draw()
@@ -289,6 +291,10 @@ def fragment_shader(f_attr):
 
 def per_sample(fragment):
     x, y, z = int(fragment.screen.x), int(fragment.screen.y), fragment.screen.z
+
+    if x < view.x or x >= view.w or y < 0 or y >= view.h:
+        return
+
     if z < depth_buffer[x * view.w + y]:
         depth_buffer[x * view.w + y] = z
         frame_buffer[x * view.w + y] = fragment.color
